@@ -261,5 +261,4 @@ docker volume ls | where { $_.Name -match "(minio|cvat)" } | foreach { docker vo
 ---
 
 ## License
-
-Your choice. If you want others to use it without sending you passive‑aggressive emails, pick MIT.
+MIT.

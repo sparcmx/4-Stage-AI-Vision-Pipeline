@@ -1,0 +1,7 @@
+# place at: s3://datasets/phone/dataset.yaml
+path: .
+train: images/train
+val: images/val
+test: images/test
+nc: 1
+names: ["phone"]

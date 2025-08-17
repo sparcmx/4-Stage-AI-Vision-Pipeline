@@ -1,0 +1,141 @@
+networks:
+  mlops:
+    driver: bridge
+
+volumes:
+  minio_data:
+  cvat_db_data:
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000","9001:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    networks: [mlops]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root s3://mlflow/
+    ports: ["5000:5000"]
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./mlflow:/mlflow
+    working_dir: /mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    networks: [mlops]
+
+  cvat_db:
+    image: postgres
+    environment:
+      POSTGRES_DB: cvat
+      POSTGRES_USER: cvat
+      POSTGRES_PASSWORD: cvat
+    volumes:
+      - cvat_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cvat -d cvat"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    networks: [mlops]
+
+  cvat_redis:
+    image: redis:6-alpine
+    command: ["redis-server","--save","","--appendonly","no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    networks: [mlops]
+
+  cvat_server:
+    image: cvat/server:latest
+    depends_on:
+      cvat_db:
+        condition: service_healthy
+      cvat_redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      CVAT_POSTGRES_HOST: cvat_db
+      CVAT_POSTGRES_PORT: 5432
+      CVAT_POSTGRES_DBNAME: cvat
+      CVAT_POSTGRES_USER: cvat
+      CVAT_POSTGRES_PASSWORD: cvat
+      CVAT_REDIS_HOST: cvat_redis
+      CVAT_REDIS_PORT: 6379
+      CVAT_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_DEFAULT_REGION: us-east-1
+    command: ["run","server"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/server/about"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [mlops]
+
+  cvat_ui:
+    image: cvat/ui:latest
+    ports: ["8080:80"]
+    depends_on:
+      cvat_server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [mlops]
+
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.05-py3
+    command: ["tritonserver","--model-repository=/models","--http-port=8000","--grpc-port=8001","--metrics-port=8002"]
+    ports: ["8000:8000","8001:8001","8002:8002"]
+    volumes:
+      - ./triton/models:/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/v2/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [mlops]
+
+  evidently:
+    image: evidently/evidently-service:latest
+    ports: ["8008:8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [mlops]

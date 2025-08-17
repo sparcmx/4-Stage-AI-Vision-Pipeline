@@ -1,0 +1,7 @@
+# Common options YOLOv8 respects if passed through (we whitelist in train.py)
+lr0: 0.01          # initial LR
+lrf: 0.01          # final LR fraction
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 3.0
+cos_lr: true

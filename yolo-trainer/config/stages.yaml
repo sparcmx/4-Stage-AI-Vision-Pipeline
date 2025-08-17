@@ -1,0 +1,28 @@
+stages:
+  - name: vehicle
+    s3_prefix: vehicle/
+    model: yolov8m.pt
+    epochs: 60
+    imgsz: 1280
+    batch: 16
+
+  - name: driver
+    s3_prefix: driver/
+    model: yolov8m.pt
+    epochs: 50
+    imgsz: 960
+    batch: 16
+
+  - name: phone
+    s3_prefix: phone/
+    model: yolov8s.pt
+    epochs: 60
+    imgsz: 960
+    batch: 16
+
+  - name: seatbelt
+    s3_prefix: seatbelt/
+    model: yolov8s.pt
+    epochs: 60
+    imgsz: 960
+    batch: 16

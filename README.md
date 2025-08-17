@@ -31,7 +31,7 @@ This builds the trainer image (`yolo-trainer/Dockerfile`) and runs `prime.ps1`, 
 
 * MinIO: [http://localhost:9001](http://localhost:9001) (console) | S3: [http://localhost:9000](http://localhost:9000)
   Default creds: `minioadmin` / `minioadmin`
-* CVAT: [http://localhost:8080](http://localhost:8080)
+* CVAT: [http://localhost:8080](http://localhost:8080) -- I need to find a new pull source for CVAT, current is problematic.
 * MLflow: [http://localhost:5000](http://localhost:5000)
 * Triton: [http://localhost:8000](http://localhost:8000) (HTTP), :8001 (gRPC)
 * Evidently: [http://localhost:8008](http://localhost:8008)
